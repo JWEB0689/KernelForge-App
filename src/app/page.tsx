@@ -28,7 +28,8 @@ import {
   FolderOpen,
   Box,
   Binary,
-  FileDown
+  FileDown,
+  Activity
 } from "lucide-react";
 
 export default function KernelcrafterDashboard() {
@@ -42,6 +43,7 @@ export default function KernelcrafterDashboard() {
   const [projectPath, setProjectPath] = useState("~/android/lineage/kernel/msm-5.15");
   const [kernelSu, setKernelSu] = useState(true);
   const [susfs, setSusfs] = useState(true);
+  const [bbr, setBbr] = useState(true);
   const [compiler, setCompiler] = useState("Clang 17.0.4");
   
   const addLog = (message: string, level: "info" | "error" | "warning" | "success" = "info") => {
@@ -62,6 +64,7 @@ export default function KernelcrafterDashboard() {
     
     if (kernelSu) addLog("Applying KernelSU v0.9.5 patches...", "success");
     if (susfs) addLog("Applying susfs4ksu kernel integration...", "success");
+    if (bbr) addLog("Enabling TCP BBR v3 Congestion Control...", "success");
     
     addLog("Configuring kernel: lineageos_sm8550_defconfig", "info");
     addLog("Starting compilation with " + compiler + "...", "info");
@@ -101,6 +104,9 @@ export default function KernelcrafterDashboard() {
         if (nextProgress % 10 === 0) {
           addLog(`Compiling: [${nextProgress}%] drivers/soc/qcom/...`, "info");
         }
+        if (nextProgress === 25 && bbr) {
+          addLog("Compiling net/ipv4/tcp_bbr.c", "info");
+        }
         if (nextProgress === 45) {
           addLog("WARNING: deprecated function in kernel/sched/core.c", "warning");
         }
@@ -117,7 +123,7 @@ export default function KernelcrafterDashboard() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isBuilding, buildProgress, toast]);
+  }, [isBuilding, buildProgress, toast, bbr]);
 
   const logsText = logs.map(l => `[${l.timestamp}] ${l.message}`).join("\n");
 
@@ -198,6 +204,7 @@ export default function KernelcrafterDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {kernelSu && <Badge className="bg-primary/20 text-primary border-primary/30">KernelSU v0.9.5</Badge>}
                         {susfs && <Badge className="bg-secondary/20 text-secondary border-secondary/30">SUSFS Integration</Badge>}
+                        {bbr && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">TCP BBR v3</Badge>}
                         <Badge variant="outline" className="border-border text-muted-foreground">WireGuard</Badge>
                         <Badge variant="outline" className="border-border text-muted-foreground">KVM Support</Badge>
                       </div>
@@ -439,11 +446,18 @@ export default function KernelcrafterDashboard() {
                 <div className="lg:col-span-1 space-y-6">
                   <Card className="border-border/50">
                     <CardHeader>
-                      <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Compiler Flags</CardTitle>
+                      <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Network & Optimization</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span>LTO (Link Time Optimization)</span>
+                        <div className="flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-blue-400" />
+                          <span>TCP BBR v3</span>
+                        </div>
+                        <Switch checked={bbr} onCheckedChange={setBbr} />
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span>LTO (Optimization)</span>
                         <Switch defaultChecked />
                       </div>
                       <div className="flex items-center justify-between text-sm">
@@ -451,11 +465,11 @@ export default function KernelcrafterDashboard() {
                         <Switch defaultChecked />
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span>CFI (Control Flow Integrity)</span>
+                        <span>CFI Security</span>
                         <Switch />
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span>SCS (Shadow Call Stack)</span>
+                        <span>SCS Protection</span>
                         <Switch defaultChecked />
                       </div>
                     </CardContent>
