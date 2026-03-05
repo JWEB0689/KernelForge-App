@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { KernelLogs } from "@/components/dashboard/KernelLogs";
 import { AITroubleshooter } from "@/components/dashboard/AITroubleshooter";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Cpu, 
   Settings2, 
@@ -26,7 +27,8 @@ import {
   CheckCircle2,
   FolderOpen,
   Box,
-  Binary
+  Binary,
+  FileDown
 } from "lucide-react";
 
 export default function KernelcrafterDashboard() {
@@ -34,6 +36,7 @@ export default function KernelcrafterDashboard() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
   const [logs, setLogs] = useState<any[]>([]);
+  const { toast } = useToast();
   
   // Form States
   const [projectPath, setProjectPath] = useState("~/android/lineage/kernel/msm-5.15");
@@ -64,13 +67,37 @@ export default function KernelcrafterDashboard() {
     addLog("Starting compilation with " + compiler + "...", "info");
   };
 
+  const downloadKernel = () => {
+    if (buildProgress < 100) return;
+    
+    addLog("Preparing kernel image for download...", "info");
+    
+    // Simulate file download
+    const dummyContent = "LineageOS Kernel Image for SM8550";
+    const blob = new Blob([dummyContent], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "Image.lz4-dtb";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Download Started",
+      description: "Kernel image (Image.lz4-dtb) is being downloaded.",
+    });
+    
+    addLog("Kernel image download initiated.", "success");
+  };
+
   useEffect(() => {
     if (isBuilding && buildProgress < 100) {
       const timer = setTimeout(() => {
         const nextProgress = buildProgress + Math.floor(Math.random() * 5) + 1;
         setBuildProgress(Math.min(nextProgress, 100));
         
-        // Mocking some log output
         if (nextProgress % 10 === 0) {
           addLog(`Compiling: [${nextProgress}%] drivers/soc/qcom/...`, "info");
         }
@@ -82,11 +109,15 @@ export default function KernelcrafterDashboard() {
           addLog("Build completed successfully!", "success");
           addLog("Kernel Image: out/arch/arm64/boot/Image.lz4-dtb", "success");
           addLog("Ready for packaging.", "info");
+          toast({
+            title: "Build Successful",
+            description: "Your kernel image is ready for download.",
+          });
         }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isBuilding, buildProgress]);
+  }, [isBuilding, buildProgress, toast]);
 
   const logsText = logs.map(l => `[${l.timestamp}] ${l.message}`).join("\n");
 
@@ -107,9 +138,14 @@ export default function KernelcrafterDashboard() {
             <div className="hidden md:flex flex-col items-end mr-4">
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-headline">Status</span>
               <span className={`text-xs font-bold ${isBuilding ? "text-secondary animate-pulse" : "text-primary"}`}>
-                {isBuilding ? "System Building..." : "Ready to Build"}
+                {isBuilding ? "System Building..." : buildProgress === 100 ? "Build Finished" : "Ready to Build"}
               </span>
             </div>
+            {buildProgress === 100 && (
+              <Button size="sm" variant="outline" onClick={downloadKernel} className="h-9 border-primary/50 text-primary hover:bg-primary/10 neon-glow">
+                <FileDown className="h-4 w-4 mr-2" /> Download Image
+              </Button>
+            )}
             <Button size="sm" variant="outline" className="h-9 border-border hover:bg-muted/30">
               <RefreshCcw className="h-4 w-4 mr-2" /> Sync Source
             </Button>
@@ -127,9 +163,14 @@ export default function KernelcrafterDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="md:col-span-2 border-border/50">
                   <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Cpu className="h-5 w-5 text-primary" />
-                      <CardTitle className="font-headline">Build Overview</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Cpu className="h-5 w-5 text-primary" />
+                        <CardTitle className="font-headline">Build Overview</CardTitle>
+                      </div>
+                      {buildProgress === 100 && (
+                        <Badge className="bg-primary/20 text-primary border-primary/30 animate-pulse">Build Ready</Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -162,6 +203,13 @@ export default function KernelcrafterDashboard() {
                       </div>
                     </div>
                   </CardContent>
+                  <CardFooter className="flex justify-end gap-3 border-t border-border/20 pt-4 bg-muted/5">
+                    {buildProgress === 100 && (
+                      <Button onClick={downloadKernel} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        <FileDown className="h-4 w-4 mr-2" /> Download Kernel Image
+                      </Button>
+                    )}
+                  </CardFooter>
                 </Card>
 
                 <Card className="border-border/50">
@@ -307,7 +355,7 @@ export default function KernelcrafterDashboard() {
                   </h2>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setLogs([])}>Clear Console</Button>
-                    <Button variant="outline" size="sm" className="border-primary/50 text-primary">Export Log</Button>
+                    <Button variant="outline" size="sm" onClick={downloadKernel} disabled={buildProgress < 100} className="border-primary/50 text-primary">Export Log</Button>
                   </div>
                 </div>
                 <KernelLogs logs={logs} />
@@ -362,9 +410,14 @@ export default function KernelcrafterDashboard() {
                           </div>
                           <h4 className="font-headline text-xl mb-2">Build Ready</h4>
                           <p className="text-sm text-muted-foreground mb-6">Your kernel image has been compiled and is ready for packaging.</p>
-                          <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
-                            Generate Flashable ZIP
-                          </Button>
+                          <div className="flex flex-col gap-2 w-full">
+                            <Button onClick={downloadKernel} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 neon-glow">
+                              <FileDown className="h-4 w-4 mr-2" /> Download Image (.lz4)
+                            </Button>
+                            <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
+                              Generate Flashable ZIP
+                            </Button>
+                          </div>
                         </>
                       ) : (
                         <>
@@ -413,14 +466,24 @@ export default function KernelcrafterDashboard() {
                    <Card className="border-border/50 bg-[#0c120d]">
                     <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/10">
                       <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        <CardTitle className="font-headline text-primary">Live Compilation</CardTitle>
+                        <div className={`h-2 w-2 rounded-full ${isBuilding ? "bg-secondary animate-pulse" : buildProgress === 100 ? "bg-primary" : "bg-muted"}`} />
+                        <CardTitle className={`font-headline ${isBuilding ? "text-secondary" : buildProgress === 100 ? "text-primary" : "text-muted-foreground"}`}>
+                          {isBuilding ? "Live Compilation" : buildProgress === 100 ? "Compilation Complete" : "Waiting to Compile"}
+                        </CardTitle>
                       </div>
                       <div className="text-xs font-code text-muted-foreground">Jobs: -j$(nproc)</div>
                     </CardHeader>
                     <CardContent className="pt-6">
                       <KernelLogs logs={logs} />
                     </CardContent>
+                    {buildProgress === 100 && (
+                      <CardFooter className="border-t border-border/10 pt-4 flex justify-between">
+                        <span className="text-xs text-muted-foreground">Output: arch/arm64/boot/Image.lz4-dtb</span>
+                        <Button size="sm" onClick={downloadKernel} className="h-8 bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30">
+                          <FileDown className="h-3.5 w-3.5 mr-2" /> Download
+                        </Button>
+                      </CardFooter>
+                    )}
                    </Card>
                 </div>
               </div>
