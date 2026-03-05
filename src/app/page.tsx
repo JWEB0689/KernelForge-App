@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { KernelLogs } from "@/components/dashboard/KernelLogs";
 import { AITroubleshooter } from "@/components/dashboard/AITroubleshooter";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +30,11 @@ import {
   Box,
   Binary,
   FileDown,
-  Activity
+  Activity,
+  Globe,
+  GitBranch,
+  Smartphone,
+  ShieldCheck
 } from "lucide-react";
 
 export default function KernelcrafterDashboard() {
@@ -39,12 +44,22 @@ export default function KernelcrafterDashboard() {
   const [logs, setLogs] = useState<any[]>([]);
   const { toast } = useToast();
   
-  // Form States
-  const [projectPath, setProjectPath] = useState("~/android/lineage/kernel/msm-5.15");
+  // Setup States
+  const [kernelUrl, setKernelUrl] = useState("https://github.com/LineageOS/android_kernel_qcom_msm-5.15");
+  const [kernelBranch, setKernelBranch] = useState("lineage-21");
+  const [deviceCodename, setDeviceCodename] = useState("kalama");
+  const [deviceModel, setDeviceModel] = useState("SM8550");
+  
+  // Patching States
   const [kernelSu, setKernelSu] = useState(true);
+  const [ksuVariant, setKsuVariant] = useState("official"); // official, next, gki
   const [susfs, setSusfs] = useState(true);
+  const [susfsBranch, setSusfsBranch] = useState("v1.5.x");
+  
+  // Compilation States
   const [bbr, setBbr] = useState(true);
   const [compiler, setCompiler] = useState("Clang 17.0.4");
+  const [projectPath, setProjectPath] = useState("~/android/lineage/kernel/msm-5.15");
   
   const addLog = (message: string, level: "info" | "error" | "warning" | "success" = "info") => {
     setLogs(prev => [...prev, {
@@ -59,14 +74,21 @@ export default function KernelcrafterDashboard() {
     setIsBuilding(true);
     setBuildProgress(0);
     setLogs([]);
-    addLog("Initializing build environment for SM8550 (kalama)...", "info");
-    addLog("Targeting LineageOS 23.2...", "info");
+    addLog(`Initializing build environment for ${deviceModel} (${deviceCodename})...`, "info");
+    addLog(`Fetching source from: ${kernelUrl} [${kernelBranch}]`, "info");
     
-    if (kernelSu) addLog("Applying KernelSU v0.9.5 patches...", "success");
-    if (susfs) addLog("Applying susfs4ksu kernel integration...", "success");
+    if (kernelSu) {
+      const variantName = ksuVariant === "next" ? "KernelSU-Next" : "Official KernelSU";
+      addLog(`Applying ${variantName} patches...`, "success");
+    }
+    
+    if (susfs) {
+      addLog(`Integrating SUSFS from branch: ${susfsBranch}...`, "success");
+    }
+    
     if (bbr) addLog("Enabling TCP BBR v3 Congestion Control...", "success");
     
-    addLog("Configuring kernel: lineageos_sm8550_defconfig", "info");
+    addLog(`Configuring kernel: ${deviceCodename}_defconfig`, "info");
     addLog("Starting compilation with " + compiler + "...", "info");
   };
 
@@ -75,13 +97,12 @@ export default function KernelcrafterDashboard() {
     
     addLog("Preparing kernel image for download...", "info");
     
-    // Simulate file download
-    const dummyContent = "LineageOS Kernel Image for SM8550";
+    const dummyContent = `LineageOS Kernel Image for ${deviceModel}`;
     const blob = new Blob([dummyContent], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "Image.lz4-dtb";
+    link.download = `Image-${deviceCodename}.lz4-dtb`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -89,7 +110,7 @@ export default function KernelcrafterDashboard() {
     
     toast({
       title: "Download Started",
-      description: "Kernel image (Image.lz4-dtb) is being downloaded.",
+      description: `Kernel image (Image-${deviceCodename}.lz4-dtb) is being downloaded.`,
     });
     
     addLog("Kernel image download initiated.", "success");
@@ -113,7 +134,7 @@ export default function KernelcrafterDashboard() {
         if (nextProgress === 100) {
           setIsBuilding(false);
           addLog("Build completed successfully!", "success");
-          addLog("Kernel Image: out/arch/arm64/boot/Image.lz4-dtb", "success");
+          addLog(`Kernel Image: out/arch/arm64/boot/Image-${deviceCodename}.lz4-dtb`, "success");
           addLog("Ready for packaging.", "info");
           toast({
             title: "Build Successful",
@@ -123,7 +144,7 @@ export default function KernelcrafterDashboard() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isBuilding, buildProgress, toast, bbr]);
+  }, [isBuilding, buildProgress, toast, bbr, deviceCodename]);
 
   const logsText = logs.map(l => `[${l.timestamp}] ${l.message}`).join("\n");
 
@@ -136,8 +157,8 @@ export default function KernelcrafterDashboard() {
             <SidebarTrigger />
             <div className="h-4 w-px bg-border/50 mx-2 hidden md:block" />
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">SM8550</Badge>
-              <Badge variant="outline" className="border-secondary/30 bg-secondary/5 text-secondary">Lineage 23.2</Badge>
+              <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary uppercase">{deviceCodename}</Badge>
+              <Badge variant="outline" className="border-secondary/30 bg-secondary/5 text-secondary">{deviceModel}</Badge>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -183,11 +204,11 @@ export default function KernelcrafterDashboard() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
                         <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">Target Device</div>
-                        <div className="text-lg font-bold font-headline">Qualcomm SM8550</div>
+                        <div className="text-lg font-bold font-headline">{deviceModel} ({deviceCodename})</div>
                       </div>
                       <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
-                        <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">OS Base</div>
-                        <div className="text-lg font-bold font-headline">LineageOS 23.2</div>
+                        <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">Compiler</div>
+                        <div className="text-lg font-bold font-headline">{compiler}</div>
                       </div>
                     </div>
                     
@@ -202,11 +223,10 @@ export default function KernelcrafterDashboard() {
                     <div className="space-y-3">
                       <Label className="text-xs uppercase tracking-widest text-muted-foreground">Active Modules</Label>
                       <div className="flex flex-wrap gap-2">
-                        {kernelSu && <Badge className="bg-primary/20 text-primary border-primary/30">KernelSU v0.9.5</Badge>}
-                        {susfs && <Badge className="bg-secondary/20 text-secondary border-secondary/30">SUSFS Integration</Badge>}
+                        {kernelSu && <Badge className="bg-primary/20 text-primary border-primary/30">{ksuVariant === "next" ? "KernelSU-Next" : "KernelSU"}</Badge>}
+                        {susfs && <Badge className="bg-secondary/20 text-secondary border-secondary/30">SUSFS {susfsBranch}</Badge>}
                         {bbr && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">TCP BBR v3</Badge>}
                         <Badge variant="outline" className="border-border text-muted-foreground">WireGuard</Badge>
-                        <Badge variant="outline" className="border-border text-muted-foreground">KVM Support</Badge>
                       </div>
                     </div>
                   </CardContent>
@@ -228,16 +248,16 @@ export default function KernelcrafterDashboard() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-border/20">
-                      <span className="text-sm text-muted-foreground">Last Build Time</span>
-                      <span className="text-sm font-code">12m 43s</span>
+                      <span className="text-sm text-muted-foreground">Source URL</span>
+                      <span className="text-[10px] font-code truncate max-w-[120px]">{kernelUrl}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-border/20">
+                      <span className="text-sm text-muted-foreground">Branch</span>
+                      <span className="text-sm font-code">{kernelBranch}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/20">
                       <span className="text-sm text-muted-foreground">Storage Usage</span>
                       <span className="text-sm font-code">14.2 GB</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-border/20">
-                      <span className="text-sm text-muted-foreground">Artifact Size</span>
-                      <span className="text-sm font-code">32.4 MB</span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-sm text-muted-foreground">Compiler Load</span>
@@ -261,27 +281,60 @@ export default function KernelcrafterDashboard() {
                   <CardTitle className="font-headline text-2xl flex items-center gap-2">
                     <Settings2 className="h-6 w-6 text-primary" /> Project Setup
                   </CardTitle>
-                  <CardDescription>Configure your workspace and source paths</CardDescription>
+                  <CardDescription>Configure your kernel source and target device</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid gap-4">
+                  <div className="grid gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Kernel Source Repository URL</Label>
+                        <Input 
+                          placeholder="https://github.com/..." 
+                          value={kernelUrl} 
+                          onChange={(e) => setKernelUrl(e.target.value)} 
+                          className="bg-muted/20" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><GitBranch className="h-3.5 w-3.5" /> Default Branch</Label>
+                        <Input 
+                          placeholder="main" 
+                          value={kernelBranch} 
+                          onChange={(e) => setKernelBranch(e.target.value)} 
+                          className="bg-muted/20" 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5" /> Device Model Name</Label>
+                        <Input 
+                          placeholder="Google Pixel 8" 
+                          value={deviceModel} 
+                          onChange={(e) => setDeviceModel(e.target.value)} 
+                          className="bg-muted/20" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" /> Device Codename</Label>
+                        <Input 
+                          placeholder="shiba" 
+                          value={deviceCodename} 
+                          onChange={(e) => setDeviceCodename(e.target.value)} 
+                          className="bg-muted/20" 
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label>Kernel Source Path</Label>
+                      <Label>Kernel Local Path (for compilation)</Label>
                       <div className="flex gap-2">
                         <Input value={projectPath} onChange={(e) => setProjectPath(e.target.value)} className="bg-muted/20" />
                         <Button variant="outline" size="icon"><FolderOpen className="h-4 w-4" /></Button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Target Device</Label>
-                        <Input value="SM8550 (kalama)" disabled className="bg-muted/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>LineageOS Version</Label>
-                        <Input value="23.2 (Android 15)" disabled className="bg-muted/50" />
-                      </div>
-                    </div>
+
                     <div className="space-y-2">
                       <Label>Toolchain Selection</Label>
                       <div className="grid grid-cols-3 gap-2">
@@ -305,24 +358,29 @@ export default function KernelcrafterDashboard() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="font-headline flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-primary" /> KernelSU
+                        <ShieldAlert className="h-5 w-5 text-primary" /> KernelSU Variant
                       </CardTitle>
                       <Switch checked={kernelSu} onCheckedChange={setKernelSu} />
                     </div>
-                    <CardDescription>Systemless root integration for LineageOS</CardDescription>
+                    <CardDescription>Choose your root integration type</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">KernelSU provides kernel-level root access that is invisible to most detection methods.</p>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between text-xs py-1 border-b border-border/10">
-                        <span className="text-muted-foreground">Patch Version</span>
-                        <span>0.9.5-stable</span>
+                  <CardContent className="space-y-6">
+                    <RadioGroup value={ksuVariant} onValueChange={setKsuVariant} disabled={!kernelSu} className="grid grid-cols-1 gap-4">
+                      <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50 hover:bg-muted/20 cursor-pointer transition-colors">
+                        <RadioGroupItem value="official" id="official" />
+                        <Label htmlFor="official" className="flex-1 cursor-pointer">
+                          <div className="font-bold">Official KernelSU</div>
+                          <div className="text-[10px] text-muted-foreground">Stable kernel-level root access</div>
+                        </Label>
                       </div>
-                      <div className="flex justify-between text-xs py-1">
-                        <span className="text-muted-foreground">Status</span>
-                        <span className="text-primary">Compatible</span>
+                      <div className="flex items-center space-x-2 p-3 rounded-lg border border-border/50 hover:bg-muted/20 cursor-pointer transition-colors">
+                        <RadioGroupItem value="next" id="next" />
+                        <Label htmlFor="next" className="flex-1 cursor-pointer">
+                          <div className="font-bold text-secondary">KernelSU-Next</div>
+                          <div className="text-[10px] text-muted-foreground">Enhanced features & experimental patches</div>
+                        </Label>
                       </div>
-                    </div>
+                    </RadioGroup>
                   </CardContent>
                 </Card>
 
@@ -331,24 +389,26 @@ export default function KernelcrafterDashboard() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="font-headline flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-secondary" /> susfs4ksu
+                        <ShieldCheck className="h-5 w-5 text-secondary" /> SUSFS Integration
                       </CardTitle>
                       <Switch checked={susfs} onCheckedChange={setSusfs} />
                     </div>
-                    <CardDescription>Filesystem hiding for root-detection bypass</CardDescription>
+                    <CardDescription>Advanced filesystem hiding for security</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">SUSFS adds kernel hooks to effectively hide root-related files and modifications from Play Integrity.</p>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex justify-between text-xs py-1 border-b border-border/10">
-                        <span className="text-muted-foreground">Integration</span>
-                        <span>v1.5.x</span>
-                      </div>
-                      <div className="flex justify-between text-xs py-1">
-                        <span className="text-muted-foreground">Status</span>
-                        <span className="text-secondary">Requires KernelSU</span>
-                      </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">SUSFS Repository Branch</Label>
+                      <Input 
+                        placeholder="v1.5.x" 
+                        value={susfsBranch} 
+                        onChange={(e) => setSusfsBranch(e.target.value)} 
+                        disabled={!susfs}
+                        className="bg-muted/20" 
+                      />
                     </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      SUSFS adds kernel hooks to effectively hide root-related files and modifications from Play Integrity detection.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -395,17 +455,11 @@ export default function KernelcrafterDashboard() {
                               <div className="text-xs opacity-70">Flashable ZIP for generic recovery installation</div>
                             </div>
                           </Button>
-                          <Button variant="outline" className="justify-start h-auto p-4 border-border/50">
-                            <div className="text-left">
-                              <div className="font-bold flex items-center gap-2"><Download className="h-4 w-4" /> Raw Boot Image</div>
-                              <div className="text-xs opacity-70">Single boot.img file for fastboot flashing</div>
-                            </div>
-                          </Button>
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label>Package Name</Label>
-                        <Input placeholder="Lineage-SM8550-Kernel-$(DATE).zip" className="bg-muted/20" />
+                        <Input placeholder={`Lineage-${deviceCodename}-Kernel-$(DATE).zip`} className="bg-muted/20" />
                       </div>
                     </div>
 
@@ -416,10 +470,10 @@ export default function KernelcrafterDashboard() {
                             <CheckCircle2 className="h-8 w-8 text-primary" />
                           </div>
                           <h4 className="font-headline text-xl mb-2">Build Ready</h4>
-                          <p className="text-sm text-muted-foreground mb-6">Your kernel image has been compiled and is ready for packaging.</p>
+                          <p className="text-sm text-muted-foreground mb-6">Your kernel for {deviceCodename} has been compiled.</p>
                           <div className="flex flex-col gap-2 w-full">
                             <Button onClick={downloadKernel} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 neon-glow">
-                              <FileDown className="h-4 w-4 mr-2" /> Download Image (.lz4)
+                              <FileDown className="h-4 w-4 mr-2" /> Download Image
                             </Button>
                             <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
                               Generate Flashable ZIP
@@ -432,7 +486,7 @@ export default function KernelcrafterDashboard() {
                             <Box className="h-8 w-8 opacity-20" />
                           </div>
                           <h4 className="font-headline text-xl mb-2">Build Required</h4>
-                          <p className="text-sm text-muted-foreground">Complete a kernel compilation before generating a flashable package.</p>
+                          <p className="text-sm text-muted-foreground">Complete a kernel compilation before generating a package.</p>
                         </>
                       )}
                     </div>
@@ -468,10 +522,6 @@ export default function KernelcrafterDashboard() {
                         <span>CFI Security</span>
                         <Switch />
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span>SCS Protection</span>
-                        <Switch defaultChecked />
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -490,14 +540,6 @@ export default function KernelcrafterDashboard() {
                     <CardContent className="pt-6">
                       <KernelLogs logs={logs} />
                     </CardContent>
-                    {buildProgress === 100 && (
-                      <CardFooter className="border-t border-border/10 pt-4 flex justify-between">
-                        <span className="text-xs text-muted-foreground">Output: arch/arm64/boot/Image.lz4-dtb</span>
-                        <Button size="sm" onClick={downloadKernel} className="h-8 bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30">
-                          <FileDown className="h-3.5 w-3.5 mr-2" /> Download
-                        </Button>
-                      </CardFooter>
-                    )}
                    </Card>
                 </div>
               </div>
