@@ -4,7 +4,7 @@ import { useState } from "react";
 import { aiBuildTroubleshootingAssistant, AiBuildTroubleshootingAssistantOutput } from "@/ai/flows/ai-build-troubleshooting-assistant";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Loader2, AlertCircle, CheckCircle2, ChevronRight } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, CheckCircle2, ChevronRight, Bot } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AITroubleshooterProps {
