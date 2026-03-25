@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { KernelLogs } from "@/components/dashboard/KernelLogs";
 import { AITroubleshooter } from "@/components/dashboard/AITroubleshooter";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +35,8 @@ import {
   Globe,
   GitBranch,
   Smartphone,
-  ShieldCheck
+  ShieldCheck,
+  Layers
 } from "lucide-react";
 
 export default function KernelcrafterDashboard() {
@@ -49,6 +51,8 @@ export default function KernelcrafterDashboard() {
   const [kernelBranch, setKernelBranch] = useState("lineage-21");
   const [deviceCodename, setDeviceCodename] = useState("kalama");
   const [deviceModel, setDeviceModel] = useState("SM8550");
+  const [gkiVersion, setGkiVersion] = useState("android13-5.15");
+  const [kmiVersion, setKmiVersion] = useState("v5.15-android13");
   
   // Patching States
   const [kernelSu, setKernelSu] = useState(true);
@@ -75,11 +79,12 @@ export default function KernelcrafterDashboard() {
     setBuildProgress(0);
     setLogs([]);
     addLog(`Initializing build environment for ${deviceModel} (${deviceCodename})...`, "info");
+    addLog(`Targeting GKI: ${gkiVersion} | KMI: ${kmiVersion}`, "info");
     addLog(`Fetching source from: ${kernelUrl} [${kernelBranch}]`, "info");
     
     if (kernelSu) {
       const variantName = ksuVariant === "next" ? "KernelSU-Next" : "Official KernelSU";
-      addLog(`Applying ${variantName} patches...`, "success");
+      addLog(`Applying ${variantName} patches for ${kmiVersion}...`, "success");
     }
     
     if (susfs) {
@@ -201,14 +206,22 @@ export default function KernelcrafterDashboard() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
                         <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">Target Device</div>
-                        <div className="text-lg font-bold font-headline">{deviceModel} ({deviceCodename})</div>
+                        <div className="text-sm font-bold font-headline truncate">{deviceModel}</div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
+                        <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">Codename</div>
+                        <div className="text-sm font-bold font-headline truncate">{deviceCodename}</div>
+                      </div>
+                      <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
+                        <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">GKI Version</div>
+                        <div className="text-sm font-bold font-headline truncate">{gkiVersion}</div>
                       </div>
                       <div className="p-4 rounded-lg bg-muted/20 border border-border/30">
                         <div className="text-[10px] uppercase text-muted-foreground tracking-widest mb-1">Compiler</div>
-                        <div className="text-lg font-bold font-headline">{compiler}</div>
+                        <div className="text-sm font-bold font-headline truncate">{compiler}</div>
                       </div>
                     </div>
                     
@@ -248,8 +261,8 @@ export default function KernelcrafterDashboard() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b border-border/20">
-                      <span className="text-sm text-muted-foreground">Source URL</span>
-                      <span className="text-[10px] font-code truncate max-w-[120px]">{kernelUrl}</span>
+                      <span className="text-sm text-muted-foreground">KMI Version</span>
+                      <span className="text-xs font-code truncate max-w-[120px]">{kmiVersion}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/20">
                       <span className="text-sm text-muted-foreground">Branch</span>
@@ -281,7 +294,7 @@ export default function KernelcrafterDashboard() {
                   <CardTitle className="font-headline text-2xl flex items-center gap-2">
                     <Settings2 className="h-6 w-6 text-primary" /> Project Setup
                   </CardTitle>
-                  <CardDescription>Configure your kernel source and target device</CardDescription>
+                  <CardDescription>Configure your kernel source and target device compatibility</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid gap-6">
@@ -324,6 +337,34 @@ export default function KernelcrafterDashboard() {
                           onChange={(e) => setDeviceCodename(e.target.value)} 
                           className="bg-muted/20" 
                         />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> GKI Version</Label>
+                        <Select value={gkiVersion} onValueChange={setGkiVersion}>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="Select GKI version" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="android12-5.10">Android 12 (5.10)</SelectItem>
+                            <SelectItem value="android13-5.15">Android 13 (5.15)</SelectItem>
+                            <SelectItem value="android14-6.1">Android 14 (6.1)</SelectItem>
+                            <SelectItem value="android15-6.6">Android 15 (6.6)</SelectItem>
+                            <SelectItem value="legacy">Non-GKI (Legacy)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Activity className="h-3.5 w-3.5" /> Target KMI (Kernel Module Interface)</Label>
+                        <Input 
+                          placeholder="v5.15-android13" 
+                          value={kmiVersion} 
+                          onChange={(e) => setKmiVersion(e.target.value)} 
+                          className="bg-muted/20" 
+                        />
+                        <p className="text-[10px] text-muted-foreground italic px-1">Must match your device's expected KMI for module compatibility.</p>
                       </div>
                     </div>
 

@@ -13,6 +13,12 @@ import { z } from 'genkit';
 
 const AiBuildTroubleshootingAssistantInputSchema = z.object({
   buildLog: z.string().describe('The full kernel build log output.'),
+  deviceInfo: z.object({
+    model: z.string().optional(),
+    codename: z.string().optional(),
+    gkiVersion: z.string().optional(),
+    kmiVersion: z.string().optional(),
+  }).optional().describe('Contextual information about the target device and kernel version.'),
 });
 export type AiBuildTroubleshootingAssistantInput = z.infer<typeof AiBuildTroubleshootingAssistantInputSchema>;
 
@@ -35,15 +41,27 @@ const prompt = ai.definePrompt({
   output: { schema: AiBuildTroubleshootingAssistantOutputSchema },
   prompt: `You are an expert Android kernel developer and a build troubleshooting assistant.
 Your task is to analyze the provided kernel build logs for issues, identify common errors or warnings, and suggest specific solutions or next steps.
-Focus on common problems encountered during LineageOS kernel compilation for the SM8550 device.
+
+Focus on issues related to:
+- LineageOS kernel compilation
+- GKI (Generic Kernel Image) compatibility
+- KMI (Kernel Module Interface) mismatches
+- SUSFS and KernelSU integration patches
+
+{{#if deviceInfo}}
+Target Context:
+- Device: {{{deviceInfo.model}}} ({{{deviceInfo.codename}}})
+- GKI Version: {{{deviceInfo.gkiVersion}}}
+- KMI Version: {{{deviceInfo.kmiVersion}}}
+{{/if}}
 
 Here are the build logs:
 
 {{{buildLog}}}
 
-Based on the logs, please provide:
+Based on the logs and context provided, please provide:
 1. A summary of the build status and any critical issues.
-2. A list of specific errors or warnings you identified.
+2. A list of specific errors or warnings you identified, particularly those related to KMI/GKI compatibility or patch integration.
 3. Actionable solutions or next steps to resolve each identified issue.
 
 Respond strictly in the JSON format defined by the output schema, ensuring all fields are populated.
