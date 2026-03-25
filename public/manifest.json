@@ -1,0 +1,23 @@
+{
+  "name": "Lineage Kernelcrafter",
+  "short_name": "K-Crafter",
+  "description": "Specialized Android kernel development dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c120d",
+  "theme_color": "#00ff55",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/kernel/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/kernel/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

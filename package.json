@@ -9,7 +9,8 @@
     "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "zip-project": "zip -r lineage-kernelcrafter.zip . -x 'node_modules/*' '.next/*' '.git/*'"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.28.0",
