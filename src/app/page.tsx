@@ -36,7 +36,9 @@ import {
   GitBranch,
   Smartphone,
   ShieldCheck,
-  Layers
+  Layers,
+  FileArchive,
+  EyeOff
 } from "lucide-react";
 
 export default function KernelcrafterDashboard() {
@@ -59,6 +61,7 @@ export default function KernelcrafterDashboard() {
   const [ksuVariant, setKsuVariant] = useState("official"); // official, next, gki
   const [susfs, setSusfs] = useState(true);
   const [susfsBranch, setSusfsBranch] = useState("v1.5.x");
+  const [noMount, setNoMount] = useState(true);
   
   // Compilation States
   const [bbr, setBbr] = useState(true);
@@ -89,6 +92,10 @@ export default function KernelcrafterDashboard() {
     
     if (susfs) {
       addLog(`Integrating SUSFS from branch: ${susfsBranch}...`, "success");
+    }
+
+    if (noMount) {
+      addLog("Applying NoMount patches by maxsteeel for filesystem hiding...", "success");
     }
     
     if (bbr) addLog("Enabling TCP BBR v3 Congestion Control...", "success");
@@ -121,6 +128,16 @@ export default function KernelcrafterDashboard() {
     addLog("Kernel image download initiated.", "success");
   };
 
+  const createFlashableZip = () => {
+    if (buildProgress < 100) return;
+    addLog("Packaging kernel with AnyKernel3 template...", "info");
+    addLog("Generating AnyKernel3 zip: AnyKernel3-Lineage-" + deviceCodename + ".zip", "success");
+    toast({
+      title: "Flashable ZIP Ready",
+      description: "AnyKernel3 package has been generated successfully.",
+    });
+  };
+
   useEffect(() => {
     if (isBuilding && buildProgress < 100) {
       const timer = setTimeout(() => {
@@ -133,8 +150,8 @@ export default function KernelcrafterDashboard() {
         if (nextProgress === 25 && bbr) {
           addLog("Compiling net/ipv4/tcp_bbr.c", "info");
         }
-        if (nextProgress === 45) {
-          addLog("WARNING: deprecated function in kernel/sched/core.c", "warning");
+        if (nextProgress === 40 && noMount) {
+          addLog("Patching fs/namespace.c with NoMount hooks", "info");
         }
         if (nextProgress === 100) {
           setIsBuilding(false);
@@ -149,7 +166,7 @@ export default function KernelcrafterDashboard() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isBuilding, buildProgress, toast, bbr, deviceCodename]);
+  }, [isBuilding, buildProgress, toast, bbr, deviceCodename, noMount]);
 
   const logsText = logs.map(l => `[${l.timestamp}] ${l.message}`).join("\n");
 
@@ -173,11 +190,15 @@ export default function KernelcrafterDashboard() {
                 {isBuilding ? "System Building..." : buildProgress === 100 ? "Build Finished" : "Ready to Build"}
               </span>
             </div>
-            {buildProgress === 100 && (
+            {buildProgress === 100 && (activeTab === "flashable" ? (
+               <Button size="sm" onClick={createFlashableZip} className="h-9 bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
+                <FileArchive className="h-4 w-4 mr-2" /> Generate ZIP
+              </Button>
+            ) : (
               <Button size="sm" variant="outline" onClick={downloadKernel} className="h-9 border-primary/50 text-primary hover:bg-primary/10 neon-glow">
                 <FileDown className="h-4 w-4 mr-2" /> Download Image
               </Button>
-            )}
+            ))}
             <Button size="sm" variant="outline" className="h-9 border-border hover:bg-muted/30">
               <RefreshCcw className="h-4 w-4 mr-2" /> Sync Source
             </Button>
@@ -238,6 +259,7 @@ export default function KernelcrafterDashboard() {
                       <div className="flex flex-wrap gap-2">
                         {kernelSu && <Badge className="bg-primary/20 text-primary border-primary/30">{ksuVariant === "next" ? "KernelSU-Next" : "KernelSU"}</Badge>}
                         {susfs && <Badge className="bg-secondary/20 text-secondary border-secondary/30">SUSFS {susfsBranch}</Badge>}
+                        {noMount && <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">NoMount</Badge>}
                         {bbr && <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">TCP BBR v3</Badge>}
                         <Badge variant="outline" className="border-border text-muted-foreground">WireGuard</Badge>
                       </div>
@@ -245,9 +267,14 @@ export default function KernelcrafterDashboard() {
                   </CardContent>
                   <CardFooter className="flex justify-end gap-3 border-t border-border/20 pt-4 bg-muted/5">
                     {buildProgress === 100 && (
-                      <Button onClick={downloadKernel} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                        <FileDown className="h-4 w-4 mr-2" /> Download Kernel Image
-                      </Button>
+                      <>
+                        <Button variant="outline" onClick={createFlashableZip} className="border-secondary/50 text-secondary hover:bg-secondary/10">
+                          <FileArchive className="h-4 w-4 mr-2" /> AnyKernel3 ZIP
+                        </Button>
+                        <Button onClick={downloadKernel} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                          <FileDown className="h-4 w-4 mr-2" /> Download Image
+                        </Button>
+                      </>
                     )}
                   </CardFooter>
                 </Card>
@@ -269,8 +296,8 @@ export default function KernelcrafterDashboard() {
                       <span className="text-sm font-code">{kernelBranch}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-border/20">
-                      <span className="text-sm text-muted-foreground">Storage Usage</span>
-                      <span className="text-sm font-code">14.2 GB</span>
+                      <span className="text-sm text-muted-foreground">NoMount Patch</span>
+                      <span className="text-xs text-primary">{noMount ? "Active" : "Disabled"}</span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-sm text-muted-foreground">Compiler Load</span>
@@ -447,9 +474,19 @@ export default function KernelcrafterDashboard() {
                         className="bg-muted/20" 
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
-                      SUSFS adds kernel hooks to effectively hide root-related files and modifications from Play Integrity detection.
-                    </p>
+                    
+                    <div className="pt-4 border-t border-border/20 space-y-3">
+                       <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <EyeOff className="h-4 w-4 text-orange-400" />
+                          <Label className="text-sm font-bold">NoMount (maxsteeel)</Label>
+                        </div>
+                        <Switch checked={noMount} onCheckedChange={setNoMount} />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        maxsteeel's NoMount patches add hooks to prevent detection of modified filesystems by preventing certain mounting behaviors.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -480,27 +517,34 @@ export default function KernelcrafterDashboard() {
               <Card className="border-border/50">
                 <CardHeader>
                   <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                    <Box className="h-6 w-6 text-secondary" /> Flashable Package Creator
+                    <Box className="h-6 w-6 text-secondary" /> AnyKernel3 Flashable Creator
                   </CardTitle>
-                  <CardDescription>Bundle your kernel into a flashable ZIP or Image</CardDescription>
+                  <CardDescription>Bundle your kernel into an AnyKernel3 flashable ZIP for recovery installation</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                       <div className="space-y-3">
-                        <Label>Package Template</Label>
+                        <Label>Zipping Template</Label>
                         <div className="grid grid-cols-1 gap-2">
                           <Button variant="default" className="justify-start h-auto p-4 border-2 border-primary">
                             <div className="text-left">
-                              <div className="font-bold flex items-center gap-2"><Binary className="h-4 w-4" /> AnyKernel3 (Recommended)</div>
-                              <div className="text-xs opacity-70">Flashable ZIP for generic recovery installation</div>
+                              <div className="font-bold flex items-center gap-2"><Binary className="h-4 w-4" /> AnyKernel3 (v3.0.x)</div>
+                              <div className="text-xs opacity-70">Universal installer for generic recovery scripts</div>
                             </div>
                           </Button>
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <Label>Package Name</Label>
-                        <Input placeholder={`Lineage-${deviceCodename}-Kernel-$(DATE).zip`} className="bg-muted/20" />
+                        <Label>ZIP Filename Format</Label>
+                        <Input placeholder={`Lineage-${deviceCodename}-Kernel-AnyKernel3.zip`} className="bg-muted/20" />
+                        <p className="text-[10px] text-muted-foreground italic">Template: AnyKernel3-Lineage-{deviceCodename}.zip</p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Switch defaultChecked />
+                          <Label className="text-xs">Include DTB/DTBO blobs</Label>
+                        </div>
                       </div>
                     </div>
 
@@ -511,13 +555,13 @@ export default function KernelcrafterDashboard() {
                             <CheckCircle2 className="h-8 w-8 text-primary" />
                           </div>
                           <h4 className="font-headline text-xl mb-2">Build Ready</h4>
-                          <p className="text-sm text-muted-foreground mb-6">Your kernel for {deviceCodename} has been compiled.</p>
+                          <p className="text-sm text-muted-foreground mb-6">Your compiled Image for {deviceCodename} is available for zipping.</p>
                           <div className="flex flex-col gap-2 w-full">
-                            <Button onClick={downloadKernel} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 neon-glow">
-                              <FileDown className="h-4 w-4 mr-2" /> Download Image
+                            <Button onClick={createFlashableZip} className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
+                              <FileArchive className="h-4 w-4 mr-2" /> Generate AnyKernel3 ZIP
                             </Button>
-                            <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/90 purple-glow">
-                              Generate Flashable ZIP
+                            <Button onClick={downloadKernel} variant="outline" className="w-full border-primary/50 text-primary hover:bg-primary/10">
+                              <FileDown className="h-4 w-4 mr-2" /> Download Raw Image
                             </Button>
                           </div>
                         </>
@@ -527,7 +571,7 @@ export default function KernelcrafterDashboard() {
                             <Box className="h-8 w-8 opacity-20" />
                           </div>
                           <h4 className="font-headline text-xl mb-2">Build Required</h4>
-                          <p className="text-sm text-muted-foreground">Complete a kernel compilation before generating a package.</p>
+                          <p className="text-sm text-muted-foreground">Complete a kernel compilation before generating a flashable package.</p>
                         </>
                       )}
                     </div>

@@ -43,10 +43,11 @@ const prompt = ai.definePrompt({
 Your task is to analyze the provided kernel build logs for issues, identify common errors or warnings, and suggest specific solutions or next steps.
 
 Focus on issues related to:
-- LineageOS kernel compilation
-- GKI (Generic Kernel Image) compatibility
-- KMI (Kernel Module Interface) mismatches
-- SUSFS and KernelSU integration patches
+- LineageOS kernel compilation for high-end SoCs (like SM8550)
+- GKI (Generic Kernel Image) compatibility and KMI (Kernel Module Interface) mismatches
+- SUSFS and KernelSU/KernelSU-Next integration patches
+- Filesystem hiding patches, specifically maxsteeel's "NoMount" patches
+- AnyKernel3 packaging and ZIP generation errors
 
 {{#if deviceInfo}}
 Target Context:
@@ -61,7 +62,7 @@ Here are the build logs:
 
 Based on the logs and context provided, please provide:
 1. A summary of the build status and any critical issues.
-2. A list of specific errors or warnings you identified, particularly those related to KMI/GKI compatibility or patch integration.
+2. A list of specific errors or warnings you identified, particularly those related to KMI/GKI compatibility, patch integration (NoMount/SUSFS), or AnyKernel3 packaging.
 3. Actionable solutions or next steps to resolve each identified issue.
 
 Respond strictly in the JSON format defined by the output schema, ensuring all fields are populated.
