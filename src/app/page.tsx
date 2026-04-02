@@ -109,7 +109,7 @@ export default function KernelcrafterDashboard() {
     
     addLog("Preparing kernel image for download...", "info");
     
-    const dummyContent = `LineageOS Kernel Image for ${deviceModel}`;
+    const dummyContent = `LineageOS Kernel Image for ${deviceModel} (${deviceCodename})\nGKI: ${gkiVersion}\nKMI: ${kmiVersion}\nPatches: ${kernelSu ? ksuVariant : 'None'}, ${susfs ? 'SUSFS' : ''}, ${noMount ? 'NoMount' : ''}`;
     const blob = new Blob([dummyContent], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -130,11 +130,25 @@ export default function KernelcrafterDashboard() {
 
   const createFlashableZip = () => {
     if (buildProgress < 100) return;
+    
     addLog("Packaging kernel with AnyKernel3 template...", "info");
+    
+    // Simulate ZIP creation
+    const dummyZipContent = `AnyKernel3 ZIP Package for ${deviceModel}\nDevice: ${deviceCodename}\nKernel Image: Image-${deviceCodename}.lz4-dtb\nCreated with K-CRAFTER`;
+    const blob = new Blob([dummyZipContent], { type: "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `AnyKernel3-Lineage-${deviceCodename}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
     addLog("Generating AnyKernel3 zip: AnyKernel3-Lineage-" + deviceCodename + ".zip", "success");
     toast({
       title: "Flashable ZIP Ready",
-      description: "AnyKernel3 package has been generated successfully.",
+      description: "AnyKernel3 package has been generated and downloaded successfully.",
     });
   };
 
@@ -328,20 +342,22 @@ export default function KernelcrafterDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Kernel Source Repository URL</Label>
-                        <Input 
+                        <input 
+                          type="text"
                           placeholder="https://github.com/..." 
                           value={kernelUrl} 
                           onChange={(e) => setKernelUrl(e.target.value)} 
-                          className="bg-muted/20" 
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                         />
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><GitBranch className="h-3.5 w-3.5" /> Default Branch</Label>
-                        <Input 
+                        <input 
+                          type="text"
                           placeholder="main" 
                           value={kernelBranch} 
                           onChange={(e) => setKernelBranch(e.target.value)} 
-                          className="bg-muted/20" 
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                         />
                       </div>
                     </div>
@@ -349,20 +365,22 @@ export default function KernelcrafterDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5" /> Device Model Name</Label>
-                        <Input 
+                        <input 
+                          type="text"
                           placeholder="Google Pixel 8" 
                           value={deviceModel} 
                           onChange={(e) => setDeviceModel(e.target.value)} 
-                          className="bg-muted/20" 
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                         />
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" /> Device Codename</Label>
-                        <Input 
+                        <input 
+                          type="text"
                           placeholder="shiba" 
                           value={deviceCodename} 
                           onChange={(e) => setDeviceCodename(e.target.value)} 
-                          className="bg-muted/20" 
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                         />
                       </div>
                     </div>
@@ -385,11 +403,12 @@ export default function KernelcrafterDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Activity className="h-3.5 w-3.5" /> Target KMI (Kernel Module Interface)</Label>
-                        <Input 
+                        <input 
+                          type="text"
                           placeholder="v5.15-android13" 
                           value={kmiVersion} 
                           onChange={(e) => setKmiVersion(e.target.value)} 
-                          className="bg-muted/20" 
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                         />
                         <p className="text-[10px] text-muted-foreground italic px-1">Must match your device's expected KMI for module compatibility.</p>
                       </div>
@@ -398,7 +417,7 @@ export default function KernelcrafterDashboard() {
                     <div className="space-y-2">
                       <Label>Kernel Local Path (for compilation)</Label>
                       <div className="flex gap-2">
-                        <Input value={projectPath} onChange={(e) => setProjectPath(e.target.value)} className="bg-muted/20" />
+                        <input type="text" value={projectPath} onChange={(e) => setProjectPath(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" />
                         <Button variant="outline" size="icon"><FolderOpen className="h-4 w-4" /></Button>
                       </div>
                     </div>
@@ -466,12 +485,13 @@ export default function KernelcrafterDashboard() {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-xs">SUSFS Repository Branch</Label>
-                      <Input 
+                      <input 
+                        type="text"
                         placeholder="v1.5.x" 
                         value={susfsBranch} 
                         onChange={(e) => setSusfsBranch(e.target.value)} 
                         disabled={!susfs}
-                        className="bg-muted/20" 
+                        className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
                       />
                     </div>
                     
@@ -537,7 +557,7 @@ export default function KernelcrafterDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label>ZIP Filename Format</Label>
-                        <Input placeholder={`Lineage-${deviceCodename}-Kernel-AnyKernel3.zip`} className="bg-muted/20" />
+                        <input type="text" placeholder={`Lineage-${deviceCodename}-Kernel-AnyKernel3.zip`} className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" />
                         <p className="text-[10px] text-muted-foreground italic">Template: AnyKernel3-Lineage-{deviceCodename}.zip</p>
                       </div>
                       <div className="space-y-2">
