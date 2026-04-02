@@ -43,3 +43,13 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# capacitor
+/android/
+/ios/
+/www/
+
+# android build
+*.apk
+*.aab
+android/app/build/
