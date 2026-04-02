@@ -1,67 +1,88 @@
-name: Build Android APK
+name: Build ARM64 APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build:
+  build-apk:
+    name: Build KernelCrafter ARM64 APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Source
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: '22'
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build Next.js Static Export
-        run: npm run build:static
-
-      - name: Setup Java (JDK 17)
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
+          distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Capacitor Android
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Sync Capacitor
+      - name: Build Next.js static export
+        run: npm run build
+        env:
+          NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.NEXT_PUBLIC_GEMINI_API_KEY }}
+
+      - name: Sync Capacitor Android
         run: npx cap sync android
 
-      - name: Build Android APK
-        id: build_apk
+      - name: Generate signing keystore
+        working-directory: android/app
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace > gradle-build.log 2>&1
+          keytool -genkey -v \
+            -keystore keystore.jks \
+            -alias kernelcrafter \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=KernelCrafter, OU=App, O=KernelCrafter, L=Unknown, ST=Unknown, C=US"
+      - name: Make gradlew executable
+        working-directory: android
+        run: chmod +x gradlew
 
-      - name: Upload Build Log
-        if: always()
+      - name: Build Release APK (arm64-v8a)
+        working-directory: android
+        run: ./gradlew assembleRelease --stacktrace --info
+        env:
+          KEYSTORE_PASSWORD: android
+          KEY_ALIAS: kernelcrafter
+          KEY_PASSWORD: android
+
+      - name: Locate and rename APK
+        run: |
+          mkdir -p dist
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          cp "$APK" dist/KernelCrafter-arm64-v8a.apk
+          echo "APK built: $(du -h dist/KernelCrafter-arm64-v8a.apk)"
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs
-          path: android/gradle-build.log
+          name: KernelCrafter-arm64-APK
+          path: dist/KernelCrafter-arm64-v8a.apk
+          retention-days: 30
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release (on tag push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
         with:
-          name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          files: dist/KernelCrafter-arm64-v8a.apk
+          generate_release_notes: true
