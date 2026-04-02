@@ -109,7 +109,7 @@ export default function KernelcrafterDashboard() {
     
     addLog("Preparing kernel image for download...", "info");
     
-    const dummyContent = `LineageOS Kernel Image for ${deviceModel} (${deviceCodename})\nGKI: ${gkiVersion}\nKMI: ${kmiVersion}\nPatches: ${kernelSu ? ksuVariant : 'None'}, ${susfs ? 'SUSFS' : ''}, ${noMount ? 'NoMount' : ''}`;
+    const dummyContent = `LineageOS Kernel Image for ${deviceModel} (${deviceCodename})\nGKI: ${gkiVersion}\nKMI: ${kmiVersion}\nPatches: ${kernelSu ? ksuVariant : 'None'}, ${susfs ? 'SUSFS' : ''}, ${noMount ? 'NoMount' : ''}\nOptimizations: ${bbr ? 'BBRv3' : 'Standard'}`;
     const blob = new Blob([dummyContent], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -118,7 +118,9 @@ export default function KernelcrafterDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    // Slight delay before revoking to ensure download starts
+    setTimeout(() => URL.revokeObjectURL(url), 100);
     
     toast({
       title: "Download Started",
@@ -134,7 +136,7 @@ export default function KernelcrafterDashboard() {
     addLog("Packaging kernel with AnyKernel3 template...", "info");
     
     // Simulate ZIP creation
-    const dummyZipContent = `AnyKernel3 ZIP Package for ${deviceModel}\nDevice: ${deviceCodename}\nKernel Image: Image-${deviceCodename}.lz4-dtb\nCreated with K-CRAFTER`;
+    const dummyZipContent = `AnyKernel3 ZIP Package for ${deviceModel}\nDevice: ${deviceCodename}\nKernel Image: Image-${deviceCodename}.lz4-dtb\nCreated with K-CRAFTER\nIncluded Patches: KSU-${ksuVariant}, SUSFS, NoMount`;
     const blob = new Blob([dummyZipContent], { type: "application/zip" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -143,7 +145,9 @@ export default function KernelcrafterDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    // Slight delay before revoking to ensure download starts
+    setTimeout(() => URL.revokeObjectURL(url), 100);
     
     addLog("Generating AnyKernel3 zip: AnyKernel3-Lineage-" + deviceCodename + ".zip", "success");
     toast({
@@ -342,22 +346,22 @@ export default function KernelcrafterDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Globe className="h-3.5 w-3.5" /> Kernel Source Repository URL</Label>
-                        <input 
+                        <Input 
                           type="text"
                           placeholder="https://github.com/..." 
                           value={kernelUrl} 
                           onChange={(e) => setKernelUrl(e.target.value)} 
-                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                          className="bg-muted/20" 
                         />
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><GitBranch className="h-3.5 w-3.5" /> Default Branch</Label>
-                        <input 
+                        <Input 
                           type="text"
                           placeholder="main" 
                           value={kernelBranch} 
                           onChange={(e) => setKernelBranch(e.target.value)} 
-                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                          className="bg-muted/20" 
                         />
                       </div>
                     </div>
@@ -365,22 +369,22 @@ export default function KernelcrafterDashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5" /> Device Model Name</Label>
-                        <input 
+                        <Input 
                           type="text"
                           placeholder="Google Pixel 8" 
                           value={deviceModel} 
                           onChange={(e) => setDeviceModel(e.target.value)} 
-                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                          className="bg-muted/20" 
                         />
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" /> Device Codename</Label>
-                        <input 
+                        <Input 
                           type="text"
                           placeholder="shiba" 
                           value={deviceCodename} 
                           onChange={(e) => setDeviceCodename(e.target.value)} 
-                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                          className="bg-muted/20" 
                         />
                       </div>
                     </div>
@@ -403,12 +407,12 @@ export default function KernelcrafterDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Activity className="h-3.5 w-3.5" /> Target KMI (Kernel Module Interface)</Label>
-                        <input 
+                        <Input 
                           type="text"
                           placeholder="v5.15-android13" 
                           value={kmiVersion} 
                           onChange={(e) => setKmiVersion(e.target.value)} 
-                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                          className="bg-muted/20" 
                         />
                         <p className="text-[10px] text-muted-foreground italic px-1">Must match your device's expected KMI for module compatibility.</p>
                       </div>
@@ -417,7 +421,7 @@ export default function KernelcrafterDashboard() {
                     <div className="space-y-2">
                       <Label>Kernel Local Path (for compilation)</Label>
                       <div className="flex gap-2">
-                        <input type="text" value={projectPath} onChange={(e) => setProjectPath(e.target.value)} className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" />
+                        <Input value={projectPath} onChange={(e) => setProjectPath(e.target.value)} className="bg-muted/20" />
                         <Button variant="outline" size="icon"><FolderOpen className="h-4 w-4" /></Button>
                       </div>
                     </div>
@@ -485,13 +489,13 @@ export default function KernelcrafterDashboard() {
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-xs">SUSFS Repository Branch</Label>
-                      <input 
+                      <Input 
                         type="text"
                         placeholder="v1.5.x" 
                         value={susfsBranch} 
                         onChange={(e) => setSusfsBranch(e.target.value)} 
                         disabled={!susfs}
-                        className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" 
+                        className="bg-muted/20" 
                       />
                     </div>
                     
@@ -557,7 +561,7 @@ export default function KernelcrafterDashboard() {
                       </div>
                       <div className="space-y-2">
                         <Label>ZIP Filename Format</Label>
-                        <input type="text" placeholder={`Lineage-${deviceCodename}-Kernel-AnyKernel3.zip`} className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm" />
+                        <Input type="text" placeholder={`Lineage-${deviceCodename}-Kernel-AnyKernel3.zip`} className="bg-muted/20" />
                         <p className="text-[10px] text-muted-foreground italic">Template: AnyKernel3-Lineage-{deviceCodename}.zip</p>
                       </div>
                       <div className="space-y-2">
