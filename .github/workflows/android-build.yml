@@ -73,12 +73,26 @@ jobs:
           KEY_ALIAS: kernelcrafter
           KEY_PASSWORD: android
 
-      - name: Locate and rename APK
+      - name: Locate, Align, and Sign APK
         run: |
           mkdir -p dist
-          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
-          cp "$APK" dist/KernelCrafter-arm64-v8a.apk
-          echo "APK built: $(du -h dist/KernelCrafter-arm64-v8a.apk)"
+          APK_UNSIGNED=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          
+          # Use Android build tools to align and explicitly sign the APK
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          
+          $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_UNSIGNED" dist/app-aligned.apk
+          
+          $BUILD_TOOLS_DIR/apksigner sign --ks android/app/keystore.jks \
+            --ks-key-alias kernelcrafter \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out dist/KernelCrafter-arm64-v8a.apk \
+            dist/app-aligned.apk
+            
+          rm dist/app-aligned.apk
+          echo "APK successfully signed and aligned: $(du -h dist/KernelCrafter-arm64-v8a.apk)"
+          $BUILD_TOOLS_DIR/apksigner verify dist/KernelCrafter-arm64-v8a.apk
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
