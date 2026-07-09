@@ -53,12 +53,12 @@ jobs:
         run: |
           keytool -genkey -v \
             -keystore keystore.jks \
-            -alias kernelcrafter \
+            -alias ${{ secrets.KEY_ALIAS || 'kernelcrafter' }} \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass android \
-            -keypass android \
+            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
+            -keypass ${{ secrets.KEY_PASSWORD }} \
             -dname "CN=KernelCrafter, OU=App, O=KernelCrafter, L=Unknown, ST=Unknown, C=US"
       - name: Make gradlew executable
         working-directory: android
@@ -68,9 +68,9 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --stacktrace --info
         env:
-          KEYSTORE_PASSWORD: android
-          KEY_ALIAS: kernelcrafter
-          KEY_PASSWORD: android
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'kernelcrafter' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Locate, Align, and Sign APK
         run: |
@@ -83,9 +83,9 @@ jobs:
           $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_UNSIGNED" dist/app-aligned.apk
           
           $BUILD_TOOLS_DIR/apksigner sign --ks android/app/keystore.jks \
-            --ks-key-alias kernelcrafter \
-            --ks-pass pass:android \
-            --key-pass pass:android \
+            --ks-key-alias ${{ secrets.KEY_ALIAS || 'kernelcrafter' }} \
+            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
             --out dist/KernelCrafter-arm64-v8a.apk \
             dist/app-aligned.apk
             
