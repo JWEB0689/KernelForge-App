@@ -26,7 +26,7 @@ jobs:
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CONFIG.MODEL: "gemini/gemini-2.5-flash"
-          CONFIG.FALLBACK_MODELS: "['gemini/gemini-2.5-flash-lite']"
+          CONFIG.MODEL: "gemini/gemini-3.8-flash"
+          CONFIG.FALLBACK_MODELS: "['gemini/gemini-3.8-flash-lite']"
           PR_REVIEWER.REQUIRE_ALL_TESTS_PASS: "false"
           PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS_PER_CHUNK: 4
