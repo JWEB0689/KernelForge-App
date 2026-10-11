@@ -52,15 +52,19 @@ jobs:
 
       - name: Generate signing keystore
         working-directory: android/app
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'kernelcrafter' }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_PASSWORD }}
         run: |
           keytool -genkey -v \
             -keystore keystore.jks \
-            -alias ${{ secrets.KEY_ALIAS || 'kernelcrafter' }} \
+            -alias "$KEY_ALIAS" \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
-            -keypass ${{ secrets.KEY_PASSWORD }} \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
             -dname "CN=KernelCrafter, OU=App, O=KernelCrafter, L=Unknown, ST=Unknown, C=US"
       - name: Make gradlew executable
         working-directory: android
@@ -75,6 +79,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Locate, Align, and Sign APK
+        env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'kernelcrafter' }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_PASSWORD }}
         run: |
           mkdir -p dist
           APK_UNSIGNED=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
@@ -85,9 +93,9 @@ jobs:
           $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_UNSIGNED" dist/app-aligned.apk
           
           $BUILD_TOOLS_DIR/apksigner sign --ks android/app/keystore.jks \
-            --ks-key-alias ${{ secrets.KEY_ALIAS || 'kernelcrafter' }} \
-            --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} \
-            --key-pass pass:${{ secrets.KEY_PASSWORD }} \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEY_PASSWORD" \
             --out dist/KernelCrafter-arm64-v8a.apk \
             dist/app-aligned.apk
             
