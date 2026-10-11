@@ -1,5 +1,9 @@
 name: Autonomous AI Auto-Fixer
 
+# Totally-free review+autofix bot: PR-Agent (Gemini free tier) reviews every PR,
+# then this workflow auto-triggers the fixer. Zero clicks, capped at 3 rounds.
+# Manual trigger via "/autofix" comment or workflow dispatch still works.
+
 on:
   issue_comment:
     types: [created]
@@ -9,8 +13,12 @@ on:
         description: "PR number to repair"
         required: true
         type: string
+  workflow_run:
+    workflows: ["PR Agent (Gemini)"]
+    types: [completed]
 
 jobs:
+  # Manual path: "/autofix" comment or manual dispatch -> shared repair workflow
   autofix:
     if: |
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/autofix')) ||
@@ -18,3 +26,37 @@ jobs:
     uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_autofix.yml@main
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+  # Auto path: PR-Agent review finished -> gate checks -> trigger fix via comment
+  # (comment reuses the proven issue_comment path; avoids event_name ambiguity
+  # in nested reusable calls. PR-Agent skips bot comments, so no review loop.)
+  auto_trigger:
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Gate and trigger autofix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PR="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
+          CONCLUSION="$(jq -r '.workflow_run.conclusion // empty' "$GITHUB_EVENT_PATH")"
+          [ -n "$PR" ] || exit 0
+          [ "$CONCLUSION" = "success" ] || exit 0
+
+          # Iteration cap: hidden marker in PR body, max 3 fix rounds
+          BODY="$(gh pr view "$PR" --json body --jq '.body // ""')"
+          ROUND="$(echo "$BODY" | grep -o '<!-- autofix-round: [0-9]* -->' | grep -o '[0-9]*' | head -1 || true)"
+          [ -z "$ROUND" ] && ROUND=0
+          if [ "$ROUND" -ge 3 ]; then
+            gh pr comment "$PR" --body "Autofix stopped after 3 rounds — remaining findings need a human."
+            exit 0
+          fi
+          CLEAN="$(printf '%s' "$BODY" | sed 's/<!-- autofix-round: [0-9]* -->//g')"
+          gh pr edit "$PR" --body "$CLEAN
+
+          <!-- autofix-round: $((ROUND + 1)) -->"
+
+          gh pr comment "$PR" --body "/autofix"
