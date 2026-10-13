@@ -39,6 +39,7 @@ jobs:
       - name: Gate and trigger autofix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}  # gh needs repo context: no checkout in this job
         run: |
           set -euo pipefail
           PR="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
