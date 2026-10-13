@@ -57,6 +57,16 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_PASSWORD }}
         run: |
+          EFFECTIVE_KEY_PASSWORD="$KEY_PASSWORD"
+          if [ -z "$EFFECTIVE_KEY_PASSWORD" ] || [ ${#EFFECTIVE_KEY_PASSWORD} -lt 6 ]; then
+            EFFECTIVE_KEY_PASSWORD="$KEYSTORE_PASSWORD"
+          fi
+          if [ -z "$EFFECTIVE_KEY_PASSWORD" ] || [ ${#EFFECTIVE_KEY_PASSWORD} -lt 6 ]; then
+            echo "::error::Signing key password must be at least 6 characters. Check KEY_PASSWORD/KEYSTORE_PASSWORD secrets."
+            exit 1
+          fi
+          echo "::add-mask::$EFFECTIVE_KEY_PASSWORD"
+          echo "EFFECTIVE_KEY_PASSWORD=$EFFECTIVE_KEY_PASSWORD" >> "$GITHUB_ENV"
           keytool -genkey -v \
             -keystore keystore.jks \
             -alias "$KEY_ALIAS" \
@@ -64,7 +74,7 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -storepass "$KEYSTORE_PASSWORD" \
-            -keypass "$KEY_PASSWORD" \
+            -keypass "$EFFECTIVE_KEY_PASSWORD" \
             -dname "CN=KernelCrafter, OU=App, O=KernelCrafter, L=Unknown, ST=Unknown, C=US"
       - name: Make gradlew executable
         working-directory: android
@@ -76,13 +86,13 @@ jobs:
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'kernelcrafter' }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_PASSWORD: ${{ env.EFFECTIVE_KEY_PASSWORD }}
 
       - name: Locate, Align, and Sign APK
         env:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'kernelcrafter' }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ env.EFFECTIVE_KEY_PASSWORD }}
         run: |
           mkdir -p dist
           APK_UNSIGNED=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
