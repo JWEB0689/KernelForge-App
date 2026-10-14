@@ -61,13 +61,12 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.0",
-    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
     "genkit-cli": "^1.28.0",
     "postcss": "^8",
-    "tailwindcss": "^4.3.3",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5"
   }
 }
