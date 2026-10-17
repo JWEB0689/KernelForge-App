@@ -1,4 +1,8 @@
-name: PR Agent (Gemini)
+name: PR-Agent + Sign-off
+
+# Copy this file into each repo's .github/workflows/ directory.
+# It wires Gemini Muse Qodo-style auto-review on PR events and a 1-click
+# Sign-Off checkbox (or /sign-off comment) that applies & commits all fixes.
 
 on:
   pull_request:
@@ -10,9 +14,9 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-  checks: write
 
 jobs:
+  # Auto-review on PR events and /review or /describe comments
   pr_agent:
     if: >-
       github.event_name == 'pull_request' ||
@@ -26,6 +30,7 @@ jobs:
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
+  # Sign-Off — triggered by ticking the [x] Sign-Off checkbox or commenting /sign-off or /autofix
   sign-off:
     if: >-
       github.event_name == 'issue_comment' &&
