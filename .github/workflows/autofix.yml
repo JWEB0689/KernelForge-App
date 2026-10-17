@@ -1,11 +1,5 @@
 name: Autonomous AI Auto-Fixer
 
-# Totally-free review+autofix bot: PR-Agent (Gemini free tier) reviews every PR,
-# then this workflow auto-triggers the fixer. Zero clicks, capped at 3 rounds.
-# Also triggers when CI fails on a PR (check_suite), feeding the failures
-# into the same repair loop. Manual trigger via "/autofix" comment or
-# workflow dispatch still works.
-
 on:
   issue_comment:
     types: [created]
@@ -22,76 +16,18 @@ on:
     types: [completed]
 
 jobs:
-  # Manual path: "/autofix" comment or manual dispatch -> shared repair workflow
   autofix:
     if: |
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/autofix')) ||
-      github.event_name == 'workflow_dispatch'
-    # Must grant everything reusable_autofix.yml declares (contents/pull-requests/
-    # issues: write — it comments via the Issues API). GitHub validates the callee
-    # against this grant at run creation; anything less fails the run with
-    # startup_failure and zero jobs. Do NOT rely on the repo default (some repos
-    # restrict it to read).
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'failure')
     permissions:
       contents: write
       pull-requests: write
       issues: write
     uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_autofix.yml@main
+    with:
+      pr_number: ${{ inputs.pr_number || github.event.issue.number || '' }}
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-  # Auto path: PR-Agent review finished, another workflow failed on the PR, or a
-  # CI check suite failed -> gate checks -> trigger fix via comment
-  # (comment reuses the proven issue_comment path; avoids event_name ambiguity
-  # in nested reusable calls. PR-Agent skips bot comments, so no review loop.)
-  auto_trigger:
-    if: github.event_name == 'workflow_run' || github.event_name == 'check_suite'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Gate and trigger autofix
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            # PR-Agent review finished -> repair only if the review succeeded
-            # (findings ship as review comments).
-            PR="$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
-            CONCLUSION="$(jq -r '.workflow_run.conclusion // empty' "$GITHUB_EVENT_PATH")"
-            [ -n "$PR" ] || exit 0
-            [ "$CONCLUSION" = "success" ] || exit 0
-          else
-            # check_suite: CI failed on a PR -> feed failures to the fixer.
-            PR="$(jq -r '.check_suite.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")"
-            CONCLUSION="$(jq -r '.check_suite.conclusion // empty' "$GITHUB_EVENT_PATH")"
-            [ -n "$PR" ] || exit 0
-            [ "$CONCLUSION" = "failure" ] || exit 0
-          fi
-
-          # Idempotency: skip if the bot already triggered after the latest push.
-          # (Prevents double runs when review-complete and CI-failed fire close
-          # together, or when a suite re-reports.)
-          LAST_PUSH="$(gh pr view "$PR" --json commits --jq '.commits[-1].committedDate // empty')"
-          LAST_TRIG="$(gh api "repos/${{ github.repository }}/issues/$PR/comments?per_page=100" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | contains("/autofix")))] | last | .created_at // empty')"
-          if [ -n "$LAST_TRIG" ] && [ -n "$LAST_PUSH" ] && [[ "$LAST_TRIG" > "$LAST_PUSH" ]]; then
-            echo "Autofix already triggered after the latest push; skipping."
-            exit 0
-          fi
-
-          # Iteration cap: hidden marker in PR body, max 3 fix rounds
-          BODY="$(gh pr view "$PR" --json body --jq '.body // ""')"
-          ROUND="$(echo "$BODY" | grep -o '<!-- autofix-round: [0-9]* -->' | grep -o '[0-9]*' | head -1 || true)"
-          [ -z "$ROUND" ] && ROUND=0
-          if [ "$ROUND" -ge 3 ]; then
-            gh pr comment "$PR" --body "Autofix stopped after 3 rounds — remaining findings need a human."
-            exit 0
-          fi
-          CLEAN="$(printf '%s' "$BODY" | sed 's/<!-- autofix-round: [0-9]* -->//g')"
-          gh pr edit "$PR" --body "$CLEAN
-
-          <!-- autofix-round: $((ROUND + 1)) -->"
-
-          gh pr comment "$PR" --body "/autofix"
