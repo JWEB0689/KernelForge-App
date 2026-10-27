@@ -8,7 +8,7 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
   issue_comment:
-    types: [created]
+    types: [created, edited]
 
 permissions:
   contents: write
@@ -25,7 +25,18 @@ jobs:
 
   # /sign-off — apply every PR-Agent code suggestion and commit in one shot
   sign-off:
-    if: ${{ github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/sign-off') && github.event.sender.type != 'Bot' }}
+    if: ${{ github.event_name == 'issue_comment' && github.event.action == 'created' && github.event.issue.pull_request && contains(github.event.comment.body, '/sign-off') && github.event.sender.type != 'Bot' }}
+    uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_autofix.yml@main
+    with:
+      mode: pr
+      pr_number: ${{ github.event.issue.number }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+  # Per-finding checkboxes — ticking Apply or Resolve on the fixer comment
+  # (an edited comment) runs the fixer for just that selection
+  fix-select:
+    if: ${{ github.event_name == 'issue_comment' && github.event.action == 'edited' && github.event.issue.pull_request && github.event.sender.type != 'Bot' && (contains(github.event.comment.body, '<!-- muse-fix:') || contains(github.event.comment.body, '<!-- muse-resolve:')) }}
     uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_autofix.yml@main
     with:
       mode: pr
