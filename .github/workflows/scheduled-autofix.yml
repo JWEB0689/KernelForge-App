@@ -1,0 +1,34 @@
+name: Scheduled Failure Auto-Fixer
+
+# When a scheduled workflow fails on the default branch, open a PR with an
+# AI-generated fix. Human still reviews and merges. Skips infra-level
+# failures (no runners, rate limits) and never opens duplicate PRs.
+
+on:
+  workflow_run:
+    workflows: ["CodeQL Advanced"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write # required: reusable_autofix.yml declares issues:write (it comments
+                # via the Issues API); GitHub fails the caller run at creation
+                # (startup_failure, zero jobs) if the caller grants less.
+
+jobs:
+  fix:
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'schedule' &&
+      !contains(github.event.workflow_run.name, 'Auto-Fixer') &&
+      !contains(github.event.workflow_run.name, 'PR Agent')
+    uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_autofix.yml@main
+    with:
+      mode: scheduled
+      run_id: ${{ github.event.workflow_run.id }}
+      workflow_name: ${{ github.event.workflow_run.name }}
+      head_sha: ${{ github.event.workflow_run.head_sha }}
+      run_url: ${{ github.event.workflow_run.html_url }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
