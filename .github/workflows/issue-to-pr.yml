@@ -1,0 +1,34 @@
+name: Issue to Auto-PR
+
+# Per-repo trigger: an issue becomes a PR.
+# Fires when an issue is opened with label auto-pr/autofix, when that label
+# is added later, or manually via workflow_dispatch with an issue number.
+# Remove the `opened` type if you only want label-gated behaviour.
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to fix"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  fix:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.issue.labels.*.name, 'auto-pr') ||
+      contains(github.event.issue.labels.*.name, 'autofix')
+    uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_auto_pr.yml@main
+    with:
+      mode: issue
+      issue_number: ${{ github.event.issue.number || inputs.issue_number }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
