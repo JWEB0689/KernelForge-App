@@ -1,0 +1,42 @@
+name: Workflow Failure to Auto-PR
+
+# Per-repo trigger: ANY workflow failure on the default branch becomes a PR.
+# This expands the old scheduled-only fixer: push, dispatch, schedule and
+# merge failures all count. It ignores its own runs and the PR-Agent runs
+# to avoid loops, and the engine skips infra failures + duplicates.
+
+on:
+  workflow_run:
+    workflows:
+      - "Build ARM64 APK"
+      - "CodeQL Advanced"
+      - "PR-Agent + Sign-off"
+      - "Copilot"
+      - "GitHub Advanced Security"
+      - "Copilot cloud agent"
+      - "Dependabot Updates"
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  fix:
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+      !contains(github.event.workflow_run.name, 'Auto-PR') &&
+      !contains(github.event.workflow_run.name, 'Auto-Fixer') &&
+      !contains(github.event.workflow_run.name, 'PR Agent')
+    uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_auto_pr.yml@main
+    with:
+      mode: failure
+      run_id: ${{ github.event.workflow_run.id }}
+      workflow_name: ${{ github.event.workflow_run.name }}
+      head_sha: ${{ github.event.workflow_run.head_sha }}
+      run_url: ${{ github.event.workflow_run.html_url }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
