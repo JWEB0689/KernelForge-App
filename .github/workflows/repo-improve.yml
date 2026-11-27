@@ -1,0 +1,37 @@
+name: Repo-Wide Improve
+
+# Per-repo trigger for whole-repo /improve.
+# Fires on:
+#   - an Issue comment starting with /improve   (plain Issue OR a PR —
+#     either way it scans the WHOLE repo, not the PR diff)
+#   - manual workflow_dispatch (optional focus input)
+# Optional focus after the command: a path (src/) or a category
+# (performance, security, readability, bugs). No focus = everything.
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: "Path or category focus (blank = whole repo)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  improve:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.comment.body, '/improve')
+    uses: JWEB0689/pr-agent-settings/.github/workflows/reusable_repo_improve.yml@main
+    with:
+      issue_number: ${{ github.event.issue.number }}
+      focus: ${{ github.event_name == 'workflow_dispatch' && inputs.focus || '' }}
+      comment_body: ${{ github.event.comment.body }}
+    secrets:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
